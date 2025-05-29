@@ -1,0 +1,18 @@
+# Ignore the entire backup folder and its subfolders
+backup/
+
+# Ignore specific folder
+process_table/
+
+# Ignore log file
+app.log
+
+# Ignore config file
+config.ini
+
+#Other files to ignore
+test_db_vm.py
+app_chatbot_local.py
+
+# Data table files
+table_sys.txt
