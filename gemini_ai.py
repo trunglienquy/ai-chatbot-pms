@@ -22,6 +22,9 @@ You are an expert in SQL. Based on the following schema:
 {schema}
 
 Write a single optimized MySQL SELECT query that answers the following user question:
+The question may include pattern matching (e.g., using LIKE with wildcards), filtering, sorting, or joining multiple tables.
+
+Always use proper SQL syntax. When using LIKE, include appropriate wildcards (e.g., % or _) if needed for pattern matching.
 
 "{question}"
 

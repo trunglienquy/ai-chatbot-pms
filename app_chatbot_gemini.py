@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import logging
 
 from config import load_config
@@ -17,6 +18,7 @@ logging.basicConfig(
 )
 
 app = Flask(__name__)
+CORS(app, resources={r"/ask": {"origins": "http://pms.test"}})
 config_data = load_config()
 configure_gemini(config_data["GEMINI_API_KEY"])
 DB_CONFIG = config_data["DB"]
@@ -65,4 +67,4 @@ def handle_question():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
