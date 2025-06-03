@@ -3,7 +3,7 @@ from flask_cors import CORS
 import logging
 
 from config import load_config
-from gemini_ai import configure_gemini, query_model
+from gemini_ai import configure_gemini, generate_sql_query, generate_natural_language_response
 from db import get_db_connection
 from schema_utils import load_schema, extract_table_names, extract_tables_from_sql, validate_tables_in_sql
 from sql_utils import is_safe_sql
@@ -26,19 +26,30 @@ DB_CONFIG = config_data["DB"]
 schema_text = load_schema()
 allowed_tables = set(t.lower() for t in extract_table_names(schema_text))
 
+def is_modifying_question(question: str) -> bool:
+    # hiện tại modify keywords đang hard code chỉ là một danh sách đơn giản, có thể mở rộng sau này
+    # phương pháp mở rộng có thể là sử dụng mô hình AI để phân tích câu hỏi nhưng hiện tại sẽ tốn phí nên chưa triển khai
+    modifying_keywords = [
+        "thêm", "tạo", "chèn", "insert", "cập nhật", "update", "xóa", "chỉnh sửa", "delete", "drop", "remove", "alter", "edit"
+    ]
+    question_lower = question.lower()
+    return any(keyword in question_lower for keyword in modifying_keywords)
+
 @app.route("/ask", methods=["POST"])
 def handle_question():
     data = request.get_json()
     question = data.get("question", "")
     if not question:
         return jsonify({"error": "Missing question"}), 400
+    if is_modifying_question(question):
+        return {"error": "Câu hỏi mang tính chỉnh sửa dữ liệu. Không thực hiện."}
 
     try:
-        generated_sql = query_model(question, schema_text)
+        generated_sql = generate_sql_query(question, schema_text)
 
         if not is_safe_sql(generated_sql):
             return jsonify({
-                "error": "Only SELECT queries are allowed",
+                "error": "Chỉ câu hỏi an toàn được phép và chấp nhận câu hỏi SQL an toàn.",
                 "sql_generated": generated_sql
             }), 400
 
@@ -56,10 +67,13 @@ def handle_question():
         cursor.close()
         conn.close()
 
+        natural_response = generate_natural_language_response(question, results)
+
         return jsonify({
             "question": question,
             "sql_generated": generated_sql,
-            "results": results
+            "results": results,
+            "response": natural_response
         })
 
     except Exception as e:

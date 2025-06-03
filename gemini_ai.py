@@ -10,11 +10,11 @@ def configure_gemini(api_key):
     """
     genai.configure(api_key=api_key)
 
-def query_model(question, schema, model_name="gemini-1.5-flash"):
+def generate_sql_query(question, schema, model_name="gemini-1.5-flash"):
     """
-    Send a prompt to the Gemini model to generate a SQL query based on the provided schema and question.
+    Generate SQL query from natural language question using the provided schema.
 
-    Gửi một prompt đến mô hình Gemini để tạo câu truy vấn SQL dựa trên schema và câu hỏi đã cung cấp.
+    Sinh câu truy vấn SQL từ câu hỏi tự nhiên sử dụng schema đã cung cấp.
     """
     prompt = f"""
 You are an expert in SQL. Based on the following schema:
@@ -38,3 +38,38 @@ Only return the SQL query. No explanation, no markdown, no extra text.
     cleaned = re.sub(r"^```sql\s*|```$", "", raw, flags=re.IGNORECASE).strip()
     logging.info(f"Cleaned SQL: {cleaned}")
     return cleaned
+
+def generate_natural_language_response(question, results, model_name="gemini-1.5-flash"):
+    """
+    Generate natural language response from SQL results.
+
+    Sinh câu trả lời tự nhiên từ kết quả SQL.
+    """
+    if not results:
+        return "Xin lỗi, tôi không tìm thấy thông tin phù hợp với câu hỏi của bạn. Bạn có thể thử hỏi lại theo cách khác không?"
+    
+    # Lấy tối đa 5 kết quả để có context tốt hơn
+    sample = results[:5]
+    
+    prompt = (
+        f"Bạn là một trợ lý AI thân thiện và chuyên nghiệp. Hãy trả lời câu hỏi của người dùng một cách tự nhiên và dễ hiểu bằng tiếng Việt.\n\n"
+        f"Câu hỏi của người dùng: {question}\n\n"
+        f"Dữ liệu tìm được: {sample}\n\n"
+        "Hãy trả lời theo các nguyên tắc sau:\n"
+        "1. Sử dụng ngôn ngữ tự nhiên, thân thiện\n"
+        "2. Tổ chức thông tin một cách logic và dễ hiểu\n"
+        "3. Nếu có nhiều kết quả, hãy tóm tắt và nhấn mạnh thông tin quan trọng\n"
+        "4. Nếu cần thiết, hãy thêm các từ nối để câu trả lời mạch lạc hơn\n"
+        "5. Tránh lặp lại câu hỏi trong câu trả lời\n"
+    )
+    
+    try:
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content(prompt)
+        result = response.text.strip()
+        if not result:
+            return "Xin lỗi, tôi gặp một chút vấn đề khi xử lý câu trả lời. Bạn có thể thử lại không?"
+        return result
+    except Exception as e:
+        logging.error(f"Error generating natural response: {str(e)}")
+        return "Xin lỗi, có lỗi xảy ra khi tạo câu trả lời. Vui lòng thử lại sau."

@@ -16,3 +16,9 @@ app_chatbot_local.py
 
 # Data table files
 table_sys.txt
+
+# MCP folder
+mcp_server/
+
+# requirements question file
+requirement_question.txt
