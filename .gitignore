@@ -22,3 +22,5 @@ mcp_server/
 
 # requirements question file
 requirement_question.txt
+
+.venv/
