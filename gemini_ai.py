@@ -17,16 +17,35 @@ def generate_sql_query(question, schema, model_name="gemini-1.5-flash"):
     Sinh câu truy vấn SQL từ câu hỏi tự nhiên sử dụng schema đã cung cấp.
     """
     prompt = f"""
-You are an expert in SQL. Based on the following schema:
+You are an expert in SQL and assistant for Property Management System (PMS). Based on the following schema:
 
+SECURITY RULES (CRITICAL):
+- Generate ONLY SELECT queries for data retrieval
+- NO data modification operations allowed
+- NO system functions or administrative queries
+- Single query only, no chaining with semicolons
+
+SCHEMA:
 {schema}
 
+BUSINESS RULES:
+1. Always use CONCAT(firstname, ' ', lastname) AS fullname for displaying and filtering person names. When filtering by a name, apply conditions on the full name using LOWER(CONCAT(firstname, ' ', lastname)) LIKE '%value%'
+2. Exclude sensitive fields: password, ssn, bank_account, internal_notes
+3. When filtering by text (e.g., project names), if the value is likely a partial match or pattern (e.g., from user questions), use LIKE '%value%' instead of = 'value'.
+4. Use `LOWER(column)` with `LIKE` to ensure case-insensitive matching
+5. If the question includes numeric conditions (e.g., greater than, top N, totals), translate it using appropriate aggregate/filtering operators
+6. When the user mentions a project name or partial name, search using LOWER(name) with LIKE '%value%' instead of using project ID or subqueries.
+
+QUERY STANDARDS:
 Write a single optimized MySQL SELECT query that answers the following user question:
-The question may include pattern matching (e.g., using LIKE with wildcards), filtering, sorting, or joining multiple tables.
+1. Limit to 10 results maximum unless aggregation (e.g., SUM, COUNT) is used
+2. Do not select attribute id, created_at, updated_at, or any other attribute that is not useful for the user.
+3. Use proper JOINs for related data
+4. The question may include pattern matching (e.g., using LIKE with wildcards), filtering, sorting, or joining multiple tables.
+5. Always use proper SQL syntax. When using LIKE, include appropriate wildcards (e.g., % or _) if needed for pattern matching.
+6. When generating SQL query only use atttribute that is in the schema.
 
-Always use proper SQL syntax. When using LIKE, include appropriate wildcards (e.g., % or _) if needed for pattern matching.
-
-"{question}"
+USER QUESTION: "{question}"
 
 Only return the SQL query. No explanation, no markdown, no extra text.
 """
