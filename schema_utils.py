@@ -3,7 +3,7 @@ import re
 def load_schema(file_path="table_sys.txt"):
     """
     Read all content from the file 
-   
+
     Đọc toàn bộ nội dung từ file
     """
     with open(file_path, "r", encoding="utf-8") as f:
