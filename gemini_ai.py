@@ -49,6 +49,7 @@ USER QUESTION: "{question}"
 
 Only return the SQL query. No explanation, no markdown, no extra text.
 """
+    logging.info(f"Generated SQL prompt: {prompt}")
     model = genai.GenerativeModel(model_name)
     response = model.generate_content(prompt)
     raw = response.text.strip()
