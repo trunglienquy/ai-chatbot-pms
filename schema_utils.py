@@ -38,3 +38,32 @@ def validate_tables_in_sql(sql, allowed_tables):
     if forbidden:
         return False, forbidden
     return True, None
+
+def filter_schema_by_table_names(schema_text, table_names):
+    """
+    Chỉ lấy phần schema của các bảng liên quan.
+    
+    :param schema_text: toàn bộ schema dưới dạng text
+    :param table_names: danh sách tên bảng cần lọc
+    :return: đoạn schema đã lọc
+    """
+    table_blocks = schema_text.split("Table ")
+    filtered = []
+
+    for block in table_blocks:
+        if not block.strip():
+            continue
+        header_line = block.splitlines()[0]
+        table_name = header_line.strip().split()[0]
+        if table_name in table_names:
+            filtered.append("Table " + block.strip())
+
+    return "\n\n".join(filtered)
+
+def extract_possible_table_names(question, all_tables):
+    """
+    Tìm các bảng có thể liên quan đến câu hỏi dựa vào tên bảng xuất hiện trong câu hỏi.
+    So khớp đơn giản theo từ khóa.
+    """
+    lower_question = question.lower()
+    return [table for table in all_tables if table.lower() in lower_question]

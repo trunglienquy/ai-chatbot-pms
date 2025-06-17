@@ -24,3 +24,6 @@ mcp_server/
 requirement_question.txt
 
 .venv/
+
+#json files
+*.json

@@ -2,15 +2,19 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import logging
 from sentence_transformers import SentenceTransformer, util
+import json
 
 from config import load_config
 from gemini_ai import configure_gemini, generate_sql_query, generate_natural_language_response
 from db import get_db_connection
-from schema_utils import load_schema, extract_table_names, extract_tables_from_sql, validate_tables_in_sql
+from schema_utils import load_schema, extract_table_names, validate_tables_in_sql, extract_possible_table_names, filter_schema_by_table_names
 from sql_utils import is_safe_sql
 
 conversation_memory = {}
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+
+with open("table_keywords.json", "r", encoding="utf-8") as f:
+    keyword_table_mapping = json.load(f)
 
 def find_similar_cached_response(user_id, new_question, threshold=0.85):
     if user_id not in conversation_memory:
@@ -79,7 +83,32 @@ def handle_question():
         #     })
 
         # 💡 Không có cache, tiếp tục như hiện tại
-        generated_sql = generate_sql_query(question, schema_text)
+        ####### generated_sql = generate_sql_query(question, schema_text)
+        # keyword -> related tables
+
+        def guess_tables_from_question(question, keyword_mapping):
+            """
+            Trả về danh sách bảng có thể liên quan đến câu hỏi dựa trên keyword mapping
+            """
+            question_lower = question.lower()
+            matched_tables = set()
+            for keyword, tables in keyword_mapping.items():
+                if keyword in question_lower:
+                    matched_tables.update(tables)
+            return list(matched_tables)
+        # Tìm các bảng có thể liên quan đến câu hỏi
+        relevant_tables = guess_tables_from_question(question, keyword_table_mapping)
+
+# Nếu không đoán được bảng nào → fallback toàn bộ schema
+        if not relevant_tables:
+            logging.info("⚠️ Không tìm thấy bảng liên quan, dùng toàn bộ schema")
+            relevant_schema = schema_text
+        else:
+            logging.info(f"📌 Các bảng liên quan đến câu hỏi: {relevant_tables}")
+            relevant_schema = filter_schema_by_table_names(schema_text, relevant_tables)
+
+        # Gọi Gemini sinh SQL từ schema rút gọn
+        generated_sql = generate_sql_query(question, relevant_schema)
 
         if not is_safe_sql(generated_sql):
             return jsonify({
