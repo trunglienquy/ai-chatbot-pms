@@ -544,31 +544,81 @@ def analyze_timesheet_daily_ai():
         
         # Prompt do user thiết kế
         prompt = f"""
-Hãy phân tích báo cáo hằng ngày so với những task đang hiển thị trên hệ thống và trả về kết quả theo định dạng [id] - effort. 
-Các task đang có trong hệ thống (định dạng ID - ProjectName - effort):
+You are an intelligent assistant helping to extract structured data from employee daily reports. Follow these steps carefully to parse the report:
+
+---
+
+### Goal:
+Return a JSON object based on the given daily report and the list of current system tasks.
+
+---
+
+### Instructions:
+
+1. **Only extract information from the "Actual" section**.
+   - The Actual section starts at a line that contains "Actual" (case-insensitive, may include Unicode characters like "■ Actual ■").
+   - Stop reading when you reach "Next plan", "Plan", "Issue", or a separator (a line full of ■ or - or _).
+   - Completely ignore anything before or after the Actual section.
+
+2. **For each task mentioned**:
+    - If a task ID matches one from the system task list (format: `ID - ProjectName - effort`), return it as:
+      ```
+      "ID - effort"
+      ```
+      where `effort` is numeric (do not include any unit like "h").
+    - If the report does not mention task ID but mentions a project and task name, return it under the `undifine` list in this format:
+      ```
+      {{
+        "ProjectName": "project name",
+        "TaskName": "task description",
+        "effort": "effort in number (or empty if not specified)"
+      }}
+      ```
+
+3. **Effort handling rules**:
+    - If effort is specified per task, use that value.
+    - If only the total effort per project is mentioned (but not per task), split the total equally across all tasks in that project.
+    - If effort is unknown, leave the `effort` field as an empty string (`""`).
+
+4. **Extract the report date**:
+    - Look for the first valid date in the report.
+    - Normalize it to `yyyy-mm-dd` format (e.g., `2025/07/18` → `2025-07-18`).
+
+---
+
+### Output Format:
+Return only a JSON object in the following structure:
+{{
+  "results": [
+    "ID - effort\\nID - effort\\n..."  ← a single string with one task per line, separated by newline characters
+  ],
+  "undifine": [
+    {{
+      "ProjectName": "",
+      "TaskName": "",
+      "effort": ""
+    }},
+    ...
+  ],
+  "date": "yyyy-mm-dd"
+}}
+
+---
+
+### Input:
+- Current system tasks:
 {system_tasks_text}
-Nội dung báo cáo:
+
+- Employee daily report:
 {daily_report}
 
-Khi trả về kết quả trả về dạng JSON, không cần giải thích. Khi trả về kết quả dựa vào báo cáo hằng ngày và những task đang có trên hệ thống để trả về dạng ID - EFFORT. Nếu trong báo cáo ngày không có ghi effort của từng task thì lấy số giờ tổng thuộc về dự án chia đều cho các task cũng thuộc về dự án đó. Lưu ý effort là số giờ làm việc (h). Khi phân tích chỉ phân tích phần Actual không phân tích các phần khác. Các phần Other trong Actual cũng không cần phân tích. Với những task nào không xác định trả về cho tôi về dạng ProjectName - TaskName. Trả về ngày tháng năm trong nội dung báo cáo, ngày tháng năm lấy ở những dòng đầu tiên của báo cáo
-Ví dụ trả về sẽ có dạng 
-results = "221 - 2\n                  223 - 3". 
-undifine = [
-{{
-"ProjectName": ''
-"TaskName:": ''
-"effort: "
-}},
-...]
-date - ngày tháng năm trong nội dung báo cáo [yyyy-mm-dd]
+Only return a valid JSON object as specified. Do not include any extra explanation or commentary.
 """
+
         
         # Gọi Gemini để sinh kết quả
         try:
             from gemini_ai import configure_gemini, generate_natural_language_response
-            # Sử dụng hàm generate_natural_language_response để lấy kết quả dạng text
-            # (hoặc có thể tạo hàm riêng nếu muốn tách biệt)
-            # Ở đây ta dùng model trực tiếp để sinh ra kết quả
             import google.generativeai as genai
             model = genai.GenerativeModel("gemini-1.5-flash")
             response = model.generate_content(prompt)

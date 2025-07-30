@@ -27,3 +27,6 @@ requirement_question.txt
 
 #json files
 *.json
+
+# Excel files
+*.xlsx
